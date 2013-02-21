@@ -1,0 +1,18 @@
+inherit berkdb
+
+NAME="db4.8"
+VERSION=4.8.30
+RELEASE=1
+CATEGORY="Database"
+SUMMARY="Oracle Berkeley DB"
+DESCRIPTION="Oracle Berkeley DB is the industry-leading open source, embeddable
+database engine that provides developers with fast, reliable, local persistence
+with zero administration. Oracle Berkeley DB is a library that links directly
+into your application. Your application makes simple function calls, rather
+than sending messages to a remote server, eliminating the performance penalty
+of client-server architectures."
+HOMEPAGE="http://www.oracle.com/technology/products/berkeleydb"
+
+#PATCH_URI+=" 4.7-java.patch 4.7-tcl.patch"
+
+KEEP_LA_FILES="none"
