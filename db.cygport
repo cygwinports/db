@@ -1,0 +1,79 @@
+inherit tcl
+
+NAME="db"
+VERSION=5.3.21
+RELEASE=1
+CATEGORY="Database"
+SUMMARY="Oracle Berkeley DB"
+DESCRIPTION="Oracle Berkeley DB is the industry-leading open source, embeddable
+database engine that provides developers with fast, reliable, local persistence
+with zero administration. Oracle Berkeley DB is a library that links directly
+into your application. Your application makes simple function calls, rather
+than sending messages to a remote server, eliminating the performance penalty
+of client-server architectures."
+HOMEPAGE="http://www.oracle.com/technology/products/berkeley-db"
+SRC_URI="http://download.oracle.com/berkeley-db/db-${VERSION%.${PV[4]}}.tar.gz"
+SRC_DIR="db-${VERSION%.${PV[4]}}"
+PATCH_URI+=" 5.3-java.patch 5.3-tcl.patch 5.3-vpath.patch"
+
+PKG_NAMES="db libdb5.3 libdb-devel db-doc tcl-db" # java-db
+db_CONTENTS="--exclude=html usr/bin/db*.exe usr/share/doc/"
+libdb5_3_CONTENTS="--exclude=*java* usr/bin/*-5.3.dll"
+libdb_devel_CONTENTS="usr/include/ usr/lib/lib*"
+db_doc_CONTENTS="usr/share/doc/${NAME}/html/"
+java_db_CONTENTS="usr/bin/cygdb_java-*.dll ${JAVA_DIR#/}/db.jar"
+tcl_db_CONTENTS="${TCL_LIBDIR#/}/"
+
+DIFF_EXCLUDES="config.* configure db.jar install-sh ltmain.sh libtool.m4 lt*.m4"
+
+src_compile() {
+	local slot=${PV[1]}.${PV[2]}
+
+	check_prog_req libtoolize libtool
+
+	cd ${S}/dist
+
+	ac_macrodir=aclocal libtoolize --copy --force --install || error "berkdb: libtoolize failed"
+	./s_config || error "s_config failed"
+
+	cd ${B}
+	CYGCONF_SOURCE=${S}/dist \
+	cygconf \
+		--with-mutex=${ARCH_i686+x86}${ARCH_x86_64+x86_64}/gcc-assembly \
+		--enable-compat185 \
+		--enable-cxx \
+		--enable-dynamic \
+		--enable-sql \
+		--disable-java \
+		--enable-tcl \
+		--disable-test
+
+	cygmake libdb-${slot}.la
+	cygmake C_OBJS="libdb-${slot}.la"
+}
+
+src_install() {
+	local slot=${PV[1]}.${PV[2]}
+
+	cd ${B}
+	cyginstall docdir=/usr/share/doc/${NAME}/html emode=755 fmode=644
+
+	# replace unslotted libs with symlinks
+	rm -f ${D}/usr/lib/libdb{_cxx,}.a
+	dosym libdb-${slot}.a /usr/lib/libdb.a
+	dosym libdb-${slot}.dll.a /usr/lib/libdb.dll.a
+	dosym libdb_cxx-${slot}.a /usr/lib/libdb_cxx.a
+	dosym libdb_cxx-${slot}.dll.a /usr/lib/libdb_cxx.dll.a
+	dosym libdb_sql-${slot}.a /usr/lib/libdb_sql.a
+	dosym libdb_sql-${slot}.dll.a /usr/lib/libdb_sql.dll.a
+
+	# these implibs aren't needed
+	rm -f ${D}/usr/lib/libdb_java-${slot}.*
+	rm -f ${D}/usr/lib/libdb_tcl-${slot}.*
+
+	# relocate and install Tcl module
+	dodir ${TCL_LIBDIR}/db${slot}
+	mv ${D}/usr/lib/cygdb_tcl-${slot}.dll ${D}${TCL_LIBDIR}/db${slot}/
+	echo pkg_mkIndex ${D}${TCL_LIBDIR}/db${slot} cygdb_tcl-${slot}.dll | PATH=${D}/usr/bin:$PATH ${TCLSH}
+	sed -i -e "s#${D}##g" ${D}${TCL_LIBDIR}/db${slot}/pkgIndex.tcl
+}
